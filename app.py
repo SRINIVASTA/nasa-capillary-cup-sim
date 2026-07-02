@@ -122,8 +122,9 @@ with tab1:
     fluid_container = []
 
     def update(frame):
+        # FIXED: Extracting and removing the actual visual polygon from index 0
         if len(fluid_container) > 0:
-            fluid_container.remove()
+            fluid_container[0].remove()
             fluid_container.clear()
             
         if not is_geometry_safe:
@@ -171,7 +172,6 @@ with tab1:
     channel_lip_width = channel_widths[-1] * 1000 
     
     with dash_col1:
-        # FIXED: Self-calculating baseline to ensure perfect delta variance against true Coffee (68.60 Pa)
         true_coffee_base = (2 * 0.073 * np.cos(np.radians(20))) / 0.002
         st.metric(
             label="Peak Capillary Pressure (At Lip Corner)", 
