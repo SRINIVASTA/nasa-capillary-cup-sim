@@ -47,7 +47,6 @@ with tab1:
     wicking_power = (sigma * np.cos(theta_rad)) / mu
     
     # Scale total frames required based on a baseline (Coffee = fast, Oil = slow)
-    # Coffee (~68.5) takes 25 frames. Cooking Oil (~0.62) takes 100+ frames.
     if SELECTED_BEVERAGE == "Coffee":
         wicking_end_frame = 25
     elif SELECTED_BEVERAGE == "Fruit Juice":
@@ -97,8 +96,9 @@ with tab1:
     fluid_container = []
 
     def update(frame):
+        # FIXED: Pop the visual collection out of the tracking list first
         if len(fluid_container) > 0:
-            fluid_container.remove()
+            fluid_container[0].remove()
             fluid_container.clear()
             
         # Standard Dynamic Wicking Phase (Frames 0 to 99)
@@ -109,7 +109,6 @@ with tab1:
             progress_ratio = min(frame / wicking_end_frame, 1.0)
             fluid_index = int(progress_ratio * (steps - 1))
             
-            # Liquid is at full capacity resting at the lip if done wicking early
             current_y = y_coords[:fluid_index+1]
             current_widths = channel_widths[:fluid_index+1]
             p_y = y_coords[:fluid_index+1]
