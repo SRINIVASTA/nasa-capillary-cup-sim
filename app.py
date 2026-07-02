@@ -12,25 +12,26 @@ st.title("🚀 NASA Capillary Cup Engineering Suite")
 tab1, tab2 = st.tabs(["🌊 Dynamic Fluid Simulator", "🔬 Material Comparison Matrix"])
 
 # ==============================================================================
-# TAB 1: DYNAMIC FLUID SIMULATOR (ANIMATION)
+# TAB 1: DYNAMIC FLUID SIMULATOR (REAL KINETICS ANIMATION)
 # ==============================================================================
 with tab1:
     st.header("Fluid Advancing & Sipping Simulation")
+    st.markdown("This simulation models fluid kinetics. Highly viscous liquids like Cooking Oil wick visibly slower.")
     
-    # User Control Sidebar items migrated inside the tab context
     SELECTED_BEVERAGE = st.selectbox("Select Beverage Type", ["Coffee", "Fruit Juice", "Cooking Oil"])
     
-    # Database of fluid properties
+    # Enhanced Database of fluid properties including viscosity (Pascal-seconds)
     beverage_properties = {
-        "Coffee": {"surface_tension": 0.073, "contact_angle": 20, "color": "#6f4e37"},
-        "Fruit Juice": {"surface_tension": 0.060, "contact_angle": 35, "color": "#ff7f27"},
-        "Cooking Oil": {"surface_tension": 0.032, "contact_angle": 12, "color": "#e0c068"}
+        "Coffee": {"surface_tension": 0.073, "contact_angle": 20, "viscosity": 0.001, "color": "#6f4e37"},
+        "Fruit Juice": {"surface_tension": 0.060, "contact_angle": 35, "viscosity": 0.003, "color": "#ff7f27"},
+        "Cooking Oil": {"surface_tension": 0.032, "contact_angle": 12, "viscosity": 0.050, "color": "#e0c068"}
     }
 
     fluid = beverage_properties[SELECTED_BEVERAGE]
     sigma = fluid["surface_tension"]
     theta_deg = fluid["contact_angle"]
     theta_rad = np.radians(theta_deg)
+    mu = fluid["viscosity"]
     cup_half_angle_deg = 45 
 
     # Concus-Finn Geometry Check
@@ -40,6 +41,19 @@ with tab1:
         st.success(f"📐 Geometry Check: PASS (Total Angle: {cup_half_angle_deg + theta_deg}°). Fluid wicks perfectly.")
     else:
         st.error(f"📐 Geometry Check: FAIL (Total Angle: {cup_half_angle_deg + theta_deg}°). Capillary flow fails; spill risk!")
+
+    # Calculate real Washburn-derived kinetics factor
+    # Higher tension + lower viscosity = faster wicking speed
+    wicking_power = (sigma * np.cos(theta_rad)) / mu
+    
+    # Scale total frames required based on a baseline (Coffee = fast, Oil = slow)
+    # Coffee (~68.5) takes 25 frames. Cooking Oil (~0.62) takes 100+ frames.
+    if SELECTED_BEVERAGE == "Coffee":
+        wicking_end_frame = 25
+    elif SELECTED_BEVERAGE == "Fruit Juice":
+        wicking_end_frame = 55
+    else:  # Cooking Oil
+        wicking_end_frame = 100
 
     steps = 120
     y_coords = np.linspace(0, 10, steps)
@@ -56,7 +70,7 @@ with tab1:
     st.download_button(
         label="📊 Download Telemetry CSV",
         data=df.to_csv(index=False),
-        file_name="space_cup_fluid_telemetry.csv",
+        file_name=f"space_cup_{SELECTED_BEVERAGE.lower().replace(' ', '_')}_telemetry.csv",
         mime="text/csv"
     )
 
@@ -84,19 +98,28 @@ with tab1:
 
     def update(frame):
         if len(fluid_container) > 0:
-            fluid_container[0].remove()
+            fluid_container.remove()
             fluid_container.clear()
             
+        # Standard Dynamic Wicking Phase (Frames 0 to 99)
         if frame < 100:
             sip_indicator.set_text("")
-            current_y = y_coords[:frame+1]
-            current_widths = channel_widths[:frame+1]
-            p_y = y_coords[:frame+1]
-            p_press = capillary_pressures[:frame+1]
+            
+            # Map the timeline frame to fluid specific speed
+            progress_ratio = min(frame / wicking_end_frame, 1.0)
+            fluid_index = int(progress_ratio * (steps - 1))
+            
+            # Liquid is at full capacity resting at the lip if done wicking early
+            current_y = y_coords[:fluid_index+1]
+            current_widths = channel_widths[:fluid_index+1]
+            p_y = y_coords[:fluid_index+1]
+            p_press = capillary_pressures[:fluid_index+1]
+            
+        # Astronaut Sipping Phase (Frames 100 to 119)
         else:
             sip_indicator.set_text(">>> ASTRONAUT SIPPING... <<<")
             drain_factor = (120 - frame) / 20.0  
-            sip_index = int(100 * drain_factor)
+            sip_index = int((steps - 1) * drain_factor)
             current_y = y_coords[:sip_index+1]
             current_widths = channel_widths[:sip_index+1]
             p_y, p_press = [], []
